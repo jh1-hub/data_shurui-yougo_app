@@ -457,19 +457,18 @@ const finishGame = () => {
   stopStreamAnimation();
   if (state.timeoutId) clearTimeout(state.timeoutId);
   
-  // Update High Score
-  const currentTopic = state.selectedTopic;
-  const currentScore = state.currentScore;
-  const oldHigh = state.highScores[currentTopic] || 0;
-  
-  if (currentScore > oldHigh) {
-      state.highScores[currentTopic] = currentScore;
-      saveHighScores();
-  }
-  
-  // Lock the current topic if it is NOT the practice mode
-  // This allows players to play "Practice (NORMAL)" and then immediately play "Main"
+  // Only update high scores and lock topic if NOT practice mode
   if (state.currentLevel !== 'NORMAL') {
+      const currentTopic = state.selectedTopic;
+      const currentScore = state.currentScore;
+      const oldHigh = state.highScores[currentTopic] || 0;
+      
+      if (currentScore > oldHigh) {
+          state.highScores[currentTopic] = currentScore;
+          saveHighScores();
+      }
+      
+      // Lock the current topic
       state.lastPlayedTopic = state.selectedTopic;
       saveUserProgress();
   }
