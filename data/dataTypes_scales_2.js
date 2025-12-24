@@ -167,16 +167,7 @@ export const scaleQuestionsPart2 = [
     explanation: '時点を表します。14:00は13:00より1時間後という間隔に意味はありますが、比率（14時は7時の2倍）は無意味です。',
     hint: '時間の「長さ」ではなく「時点」です。'
   },
-  {
-    id: 'dt-scale-2-17',
-    topic: TOPIC.DATA_TYPES,
-    mode: 'stream',
-    text: 'テストの点数 (※教育測定における解釈)',
-    options: ['名義尺度', '順序尺度', '間隔尺度', '比例尺度'],
-    correctAnswer: '間隔尺度',
-    explanation: '厳密には0点が「能力ゼロ」を意味しないため間隔尺度とされることが多いですが、一般的には比例尺度のように扱われることもあります。情報Iの文脈では間隔尺度（あるいは比例尺度）の理解が問われますが、0の意味に着目すると間隔尺度的性質が見えます。',
-    hint: '0点は知識が完全にゼロであることを証明しますか？'
-  },
+  // REMOVED: Educational Measurement question
   {
     id: 'dt-scale-2-18',
     topic: TOPIC.DATA_TYPES,

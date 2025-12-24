@@ -53,6 +53,16 @@ export const scaleQuestionsPart3 = [
     explanation: '場所を示す名前（ラベル）です。',
     hint: '駅の名前です。'
   },
+  {
+    id: 'dt-scale-3-21',
+    topic: TOPIC.DATA_TYPES,
+    mode: 'stream',
+    text: '郵便番号 (〒)',
+    options: ['名義尺度', '順序尺度', '間隔尺度', '比例尺度'],
+    correctAnswer: '名義尺度',
+    explanation: '地域を識別するためのコード番号です。数値の大きさに意味はありません。',
+    hint: '住所の代わりの番号です。'
+  },
 
   // --- Ordinal Scale (順序尺度) ---
   {
@@ -157,6 +167,16 @@ export const scaleQuestionsPart3 = [
     explanation: '平均を100とする相対的な指標です。',
     hint: '偏差値と同じ仲間です。'
   },
+  {
+    id: 'dt-scale-3-22',
+    topic: TOPIC.DATA_TYPES,
+    mode: 'stream',
+    text: '生まれ年 (西暦)',
+    options: ['名義尺度', '順序尺度', '間隔尺度', '比例尺度'],
+    correctAnswer: '間隔尺度',
+    explanation: '時間の時点を表す数値です。2000年生まれは1000年生まれの2倍の年齢ではありません。',
+    hint: '「年号」と同じです。'
+  },
 
   // --- Ratio Scale (比例尺度) ---
   {
@@ -208,5 +228,15 @@ export const scaleQuestionsPart3 = [
     correctAnswer: '比例尺度',
     explanation: '金額データは比例尺度です。',
     hint: 'お店の収入です。'
+  },
+  {
+    id: 'dt-scale-3-23',
+    topic: TOPIC.DATA_TYPES,
+    mode: 'stream',
+    text: 'ハードディスク容量 (TB)',
+    options: ['名義尺度', '順序尺度', '間隔尺度', '比例尺度'],
+    correctAnswer: '比例尺度',
+    explanation: 'データ量は比率計算が可能です。2TBは1TBの2倍の容量です。',
+    hint: 'データの量です。'
   }
 ];

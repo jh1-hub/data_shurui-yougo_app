@@ -177,7 +177,7 @@ export const renderTutorial = () => {
             </div>`;
           contentHtml = `<div class="animate-fadeIn w-full max-w-3xl mx-auto"><div class="flex items-center gap-3 mb-6"><span class="bg-emerald-600 text-white font-bold px-3 py-1 rounded-full text-sm">STEP 4</span><h3 class="text-2xl font-bold text-slate-700">間隔 vs 比例 (応用)</h3></div><div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6"><p class="text-indigo-900 text-sm font-bold">倍率（× ÷）が使えるのは比例尺度だけです。</p></div>${renderMiniGameCard("divide", "倍率チェック", "「AはBの2倍」と言えるのはどっち？", gameContent)}</div>`;
       } else if (page === 4) {
-          // --- Enhanced Summary for TYPES (White Theme) ---
+          // --- Enhanced Summary for TYPES (White Theme) + Table ---
           contentHtml = `
             <div class="animate-fadeIn w-full max-w-4xl mx-auto pb-8">
                <div class="bg-white text-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 mb-8 relative overflow-hidden">
@@ -229,6 +229,55 @@ export const renderTutorial = () => {
                      </div>
                   </div>
 
+                  <!-- Scales Comparison Table -->
+                  <div class="mb-8 relative z-10 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                     <div class="bg-slate-100 p-3 border-b border-slate-200 font-bold text-slate-700 text-center text-sm">
+                        <i data-lucide="table-2" class="w-4 h-4 inline mr-1"></i>
+                        尺度と計算の可否まとめ
+                     </div>
+                     <table class="w-full text-sm text-center bg-white">
+                        <thead>
+                           <tr class="text-xs text-slate-500 border-b border-slate-100 bg-slate-50/50">
+                              <th class="py-2 px-1 w-1/4">尺度名</th>
+                              <th class="py-2 px-1">特徴</th>
+                              <th class="py-2 px-1 text-xs">大小<br><span class="scale-75 inline-block">(＞＜)</span></th>
+                              <th class="py-2 px-1 text-xs">差<br><span class="scale-75 inline-block">(＋－)</span></th>
+                              <th class="py-2 px-1 text-xs">比<br><span class="scale-75 inline-block">(×÷)</span></th>
+                           </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                           <tr class="group hover:bg-pink-50 transition-colors">
+                              <td class="py-3 px-2 font-bold text-pink-600 bg-pink-50/30">名義尺度</td>
+                              <td class="py-3 px-2 text-left text-xs text-slate-600">区別するだけ</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                           </tr>
+                           <tr class="group hover:bg-pink-50 transition-colors">
+                              <td class="py-3 px-2 font-bold text-pink-600 bg-pink-50/30">順序尺度</td>
+                              <td class="py-3 px-2 text-left text-xs text-slate-600">順序がある</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                           </tr>
+                           <tr class="group hover:bg-cyan-50 transition-colors">
+                              <td class="py-3 px-2 font-bold text-cyan-600 bg-cyan-50/30">間隔尺度</td>
+                              <td class="py-3 px-2 text-left text-xs text-slate-600">間隔が等しい</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                              <td class="py-3 px-2 text-slate-300 font-bold">×</td>
+                           </tr>
+                           <tr class="group hover:bg-cyan-50 transition-colors">
+                              <td class="py-3 px-2 font-bold text-cyan-600 bg-cyan-50/30">比例尺度</td>
+                              <td class="py-3 px-2 text-left text-xs text-slate-600">0が「無」を表す</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                              <td class="py-3 px-2 text-emerald-500 font-bold">○</td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+
                   <!-- Optional Challenge Button for Normal Mode -->
                   <div class="text-center">
                     <button onclick="window.app.markTutorialAndPlay('TYPES', 'NORMAL')" 
@@ -248,6 +297,7 @@ export const renderTutorial = () => {
       }
   } 
   else if (module === 'CLEANING') {
+      // ... (Existing CLEANING content remains unchanged) ...
       if (page === 0) {
           const isDone = step === 1;
           const gameContent = isDone ? '' : `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-4 overflow-hidden"><table class="w-full text-sm text-center"><thead class="bg-slate-100 text-slate-500"><tr><th>ID</th><th>名前</th><th>点数</th></tr></thead><tbody class="divide-y divide-slate-100"><tr><td>001</td><td>山田</td><td>85</td></tr><tr onclick="window.app.handleTutorialAction('identify_bad', 1)" class="cursor-pointer hover:bg-slate-50 transition-colors"><td>002</td><td>佐藤</td><td>92</td></tr><tr onclick="window.app.handleTutorialAction('identify_bad', 2)" class="cursor-pointer hover:bg-slate-50 transition-colors"><td>003</td><td>鈴木</td><td class="font-bold font-mono text-slate-400">NULL</td></tr><tr><td>004</td><td>高橋</td><td>78</td></tr></tbody></table></div>`;
@@ -315,33 +365,40 @@ export const renderTutorial = () => {
                         </div>
                      </div>
 
-                     <!-- 2. Mean vs Median Comparison Table -->
+                     <!-- 2. Mean vs Median vs Mode Comparison Table -->
                      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
                         <h4 class="font-bold text-lg text-emerald-600 mb-3 flex items-center gap-2"><i data-lucide="scale" class="w-5 h-5"></i> 代表値の比較</h4>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left border-collapse">
+                            <table class="w-full text-sm text-left border-collapse min-w-[500px]">
                                 <thead>
-                                    <tr class="text-slate-500 border-b border-slate-200">
-                                        <th class="p-2 w-1/4"></th>
-                                        <th class="p-2 font-bold text-slate-700 w-1/3">平均値 (Mean)</th>
-                                        <th class="p-2 font-bold text-slate-700 w-1/3">中央値 (Median)</th>
+                                    <tr class="text-slate-500 border-b border-slate-200 bg-slate-100">
+                                        <th class="p-3 w-1/5 font-bold"></th>
+                                        <th class="p-3 font-bold text-slate-700 w-1/4">特徴</th>
+                                        <th class="p-3 font-bold text-emerald-600 w-1/4">メリット</th>
+                                        <th class="p-3 font-bold text-rose-500 w-1/4">デメリット</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-slate-700">
+                                    <!-- Mean Row -->
                                     <tr class="border-b border-slate-200 bg-white">
-                                        <td class="p-3 font-bold text-slate-500 text-xs">特徴</td>
+                                        <td class="p-3 font-bold text-slate-700 bg-slate-50">平均値<br><span class="text-xs text-slate-400 font-normal">(Mean)</span></td>
                                         <td class="p-3">データの合計 ÷ 個数。<br>すべてのデータを考慮する。</td>
-                                        <td class="p-3">順位が真ん中の値。<br>データの位置だけを見る。</td>
-                                    </tr>
-                                    <tr class="border-b border-slate-200 bg-slate-50/50">
-                                        <td class="p-3 font-bold text-emerald-600 text-xs">メリット</td>
                                         <td class="p-3">全体の変化を敏感に反映する。<br>数学的に扱いやすい。</td>
-                                        <td class="p-3"><span class="font-bold text-emerald-600">外れ値の影響を受けない。</span><br>「普通の感覚」に近い。</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-3 font-bold text-rose-500 text-xs">デメリット</td>
                                         <td class="p-3"><span class="font-bold text-rose-500">外れ値に弱い</span>（引っ張られる）。</td>
+                                    </tr>
+                                    <!-- Median Row -->
+                                    <tr class="border-b border-slate-200 bg-slate-50/50">
+                                        <td class="p-3 font-bold text-slate-700 bg-slate-50">中央値<br><span class="text-xs text-slate-400 font-normal">(Median)</span></td>
+                                        <td class="p-3">順位が真ん中の値。<br>データの位置だけを見る。</td>
+                                        <td class="p-3"><span class="font-bold text-emerald-600">外れ値の影響を受けない。</span><br>「普通の感覚」に近い。</td>
                                         <td class="p-3">全体の変動を捉えにくい。<br>数学的な計算が難しい。</td>
+                                    </tr>
+                                    <!-- Mode Row -->
+                                    <tr class="bg-white">
+                                        <td class="p-3 font-bold text-slate-700 bg-slate-50">最頻値<br><span class="text-xs text-slate-400 font-normal">(Mode)</span></td>
+                                        <td class="p-3">最も頻繁に出現する値。<br>多数決の勝者。</td>
+                                        <td class="p-3"><span class="font-bold text-emerald-600">質的データ</span>にも使える。<br>もっとも一般的。</td>
+                                        <td class="p-3">データが少ないと意味がない。<br>山の頂上が複数あることも。</td>
                                     </tr>
                                 </tbody>
                             </table>
