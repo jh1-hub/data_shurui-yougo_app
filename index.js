@@ -19,6 +19,10 @@ import { renderOutlierGame } from './games/outlierGame.js';
 import { renderModeGame } from './games/modeGame.js';
 import { renderRaceGame } from './games/raceGame.js';
 
+// Import Tutorial Content Modules for logic validation
+import { typesContent } from './views/tutorials/typesContent.js';
+import { cleaningContent } from './views/tutorials/cleaningContent.js';
+
 // --- Helper: Time Bonus Calculation ---
 const calculateTimeBonus = () => {
   if (!state.questionStartTime) return 0;
@@ -192,10 +196,13 @@ const markTutorialAndPlay = (module, level) => {
 };
 
 const nextTutorialPage = () => {
+    // Dynamic Max Page check based on module
     let maxPages = 4;
     if (state.tutorialModule === 'CLEANING') {
-        maxPages = 4;
-    } 
+        maxPages = cleaningContent.maxPages; // 7
+    } else {
+        maxPages = typesContent.maxPages; // 4
+    }
 
     if (state.tutorialPage < maxPages) {
         state.tutorialPage++;
@@ -223,19 +230,13 @@ const prevTutorialPage = () => {
 
 const handleTutorialAction = (action, value) => {
     if (state.tutorialFeedback === 'CORRECT') return;
+    
+    // Delegate validation logic to content modules
     let isCorrect = false;
-
     if (state.tutorialModule === 'TYPES') {
-        if (state.tutorialPage === 0 && action === 'choose_type') isCorrect = (value === 'QUALITATIVE');
-        else if (state.tutorialPage === 1 && action === 'check_order') isCorrect = (value === 'YES');
-        else if (state.tutorialPage === 2 && action === 'check_zero') isCorrect = (value === 'NO');
-        else if (state.tutorialPage === 3 && action === 'check_ratio') isCorrect = (value === 'MONEY');
-    } 
-    else if (state.tutorialModule === 'CLEANING') {
-        if (state.tutorialPage === 0 && action === 'identify_bad') isCorrect = (value === 2);
-        else if (state.tutorialPage === 1 && action === 'missing_strategy') isCorrect = true; 
-        else if (state.tutorialPage === 2 && action === 'tap_outlier') isCorrect = (value === 3);
-        else if (state.tutorialPage === 3 && action === 'select_robust') isCorrect = (value === 'MEDIAN');
+        isCorrect = typesContent.validate(state.tutorialPage, action, value);
+    } else if (state.tutorialModule === 'CLEANING') {
+        isCorrect = cleaningContent.validate(state.tutorialPage, action, value);
     }
 
     if (isCorrect) {
