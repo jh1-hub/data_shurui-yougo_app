@@ -2,7 +2,7 @@
 import { QUESTIONS_DATA } from './data.js';
 import { GACHA_CARDS } from './data/gachaData.js';
 import { POINTS_PER_QUESTION, TOPIC } from './constants.js';
-import { state, resetState, saveCollection, saveHighScores, saveUserProgress } from './gameState.js';
+import { state, resetState, saveCollection, saveHighScores, saveUserProgress, saveGachaStats } from './gameState.js';
 import { escapeHtml } from './utils.js';
 
 // Renderers
@@ -23,6 +23,8 @@ import { renderRaceGame } from './games/raceGame.js';
 import { typesContent } from './views/tutorials/typesContent.js';
 import { cleaningContent } from './views/tutorials/cleaningContent.js';
 
+let stageClearTimer = null;
+
 // --- Helper: Time Bonus Calculation ---
 const calculateTimeBonus = () => {
   if (!state.questionStartTime) return 0;
@@ -32,12 +34,10 @@ const calculateTimeBonus = () => {
 };
 
 // --- Gacha Logic ---
-const rollGacha = (score, topic) => {
+const rollGacha = (score, topic, forceNew = false) => {
     let prob = { UR: 0, SR: 0, R: 0, N: 100 };
     
     // Define Thresholds based on Topic Difficulty
-    // Data Types (Stream) allows for high combos -> Higher thresholds
-    // Central Tendency -> Lower thresholds (Harder)
     let sRank = 700;
     let aRank = 450;
     let bRank = 200;
@@ -58,58 +58,175 @@ const rollGacha = (score, topic) => {
         prob = { UR: 0, SR: 1, R: 19, N: 80 };
     }
 
+    // Determine Rarity first
     const rand = Math.random() * 100;
     let selectedRarity = 'N';
-    
     if (rand < prob.UR) selectedRarity = 'UR';
     else if (rand < prob.UR + prob.SR) selectedRarity = 'SR';
     else if (rand < prob.UR + prob.SR + prob.R) selectedRarity = 'R';
     
-    // Pick a card of that rarity
-    const pool = GACHA_CARDS.filter(c => c.rarity === selectedRarity);
-    const card = pool[Math.floor(Math.random() * pool.length)];
+    // Pool Filter Logic
+    let pool = [];
     
+    // 1. Stage Filter
+    let stagePool = GACHA_CARDS.filter(c => c.stage <= state.stage);
+    
+    // 2. Pity System (Force New) Check
+    if (forceNew) {
+        const uncollectedInStage = stagePool.filter(c => !state.collection.includes(c.id));
+        if (uncollectedInStage.length > 0) {
+            // Try to match rarity
+            const uncollectedOfRarity = uncollectedInStage.filter(c => c.rarity === selectedRarity);
+            if (uncollectedOfRarity.length > 0) {
+                pool = uncollectedOfRarity;
+            } else {
+                // If no new card of that rarity, just pick ANY new card
+                pool = uncollectedInStage;
+            }
+        } else {
+            // Player has collected EVERYTHING in this stage. Fallback to normal pool.
+            pool = stagePool.filter(c => c.rarity === selectedRarity);
+        }
+    } else {
+        // Normal Flow
+        pool = stagePool.filter(c => c.rarity === selectedRarity);
+    }
+    
+    // Fallback if pool is empty (e.g. no UR in stage yet, or bad luck)
+    if (pool.length === 0) {
+        // Try any card in stage
+        pool = stagePool;
+    }
+
+    const card = pool[Math.floor(Math.random() * pool.length)];
     return card;
 };
 
+// Called when user clicks "Draw Gacha"
 const handleGachaDraw = () => {
     if (state.hasDrawnGacha) return;
     
     state.isGachaAnimating = true;
+    state.gachaState = 'ANIMATING';
     render();
 
-    // Simulate animation delay (1.2s)
     setTimeout(() => {
-        let card;
-        let attempts = 0;
-        const MAX_RETRIES = 3;
-
-        // Reroll logic for duplicates
-        do {
-            card = rollGacha(state.currentScore, state.selectedTopic);
-            attempts++;
-            
-            // Check if we already have this card
-            const isDuplicate = state.collection.includes(card.id);
-            
-            if (!isDuplicate) {
-                break; // New card found!
-            }
-            // If duplicate, loop again up to MAX_RETRIES
-        } while (attempts <= MAX_RETRIES);
-
-        state.gachaResult = card;
-        state.isGachaAnimating = false;
-        state.hasDrawnGacha = true;
-
-        // Add to collection if new
-        if (!state.collection.includes(card.id)) {
-            state.collection.push(card.id);
-            saveCollection();
-        }
-
-        render();
+        executeDrawLogic();
     }, 1200); 
+};
+
+// Internal logic to determine result
+const executeDrawLogic = () => {
+    // Check Pity System: 5 consecutive dupes -> Force New
+    const forceNew = state.consecutiveDupes >= 5;
+    
+    let card = rollGacha(state.currentScore, state.selectedTopic, forceNew);
+    state.gachaResult = card;
+    
+    const isOwned = state.collection.includes(card.id);
+
+    if (!isOwned) {
+        // New Card!
+        state.gachaState = 'RESULT_NEW';
+        state.consecutiveDupes = 0; // Reset pity
+        saveGachaStats();
+        
+        // Add to collection immediately
+        addToCollection(card);
+    } else {
+        // Duplicate
+        // Calculate max rerolls if this is the first draw action
+        if (state.maxRerolls === 0) {
+             if (card.rarity === 'UR') state.maxRerolls = 3;
+             else if (card.rarity === 'SR') state.maxRerolls = 2;
+             else if (card.rarity === 'R') state.maxRerolls = 1;
+             else state.maxRerolls = 0;
+        }
+        
+        state.gachaState = 'RESULT_DUPLICATE';
+    }
+    
+    state.isGachaAnimating = false;
+    state.hasDrawnGacha = true; // Mark as drawn
+    render();
+};
+
+// User chooses to Reroll
+const handleGachaReroll = () => {
+    if (state.rerollCount >= state.maxRerolls) return;
+    
+    state.rerollCount++;
+    state.isGachaAnimating = true;
+    state.gachaState = 'ANIMATING';
+    render();
+    
+    setTimeout(() => {
+        executeDrawLogic();
+    }, 1000);
+};
+
+// User chooses to Keep Duplicate
+const handleGachaKeep = () => {
+    const card = state.gachaResult;
+    if (!card) return;
+
+    // Add count
+    if (!state.collectionCounts[card.id]) state.collectionCounts[card.id] = 1;
+    if (state.collectionCounts[card.id] < 99) {
+        state.collectionCounts[card.id]++;
+    }
+    
+    // Increment Pity Counter for next game
+    state.consecutiveDupes++;
+    saveGachaStats();
+    saveCollection();
+    
+    // Transition to final state (just visually same as New but without NEW badge)
+    state.gachaState = 'RESULT_NEW'; // Re-use view for simplicity, just shows the card
+    render();
+};
+
+const addToCollection = (card) => {
+    if (!state.collection.includes(card.id)) {
+        state.collection.push(card.id);
+        state.collectionCounts[card.id] = 1;
+        // Don't check for Stage Clear here to avoid interrupting the result flow.
+        // It will be checked when returning to Menu.
+    }
+    saveCollection();
+};
+
+// --- Check Stage Progression ---
+const checkStageProgression = () => {
+    if (state.stage === 1 && state.activeModal !== 'STAGE_CLEAR') {
+        const stage1Cards = GACHA_CARDS.filter(c => c.stage === 1);
+        const hasAllStage1 = stage1Cards.every(c => state.collection.includes(c.id));
+        
+        if (hasAllStage1) {
+            // Trigger Modal in Menu
+            state.activeModal = 'STAGE_CLEAR';
+            
+            // Auto Confirm after 10 seconds
+            if (stageClearTimer) clearTimeout(stageClearTimer);
+            stageClearTimer = setTimeout(() => {
+                handleStageClearConfirm();
+            }, 10000);
+        }
+    }
+};
+
+const handleStageClearConfirm = () => {
+    if (stageClearTimer) {
+        clearTimeout(stageClearTimer);
+        stageClearTimer = null;
+    }
+
+    if (state.activeModal === 'STAGE_CLEAR') {
+        state.stage = 2; // Level Up
+        state.activeModal = null;
+        saveUserProgress();
+        render(); // Re-render to show cream background and hide modal
+    }
 };
 
 // --- Actions ---
@@ -135,7 +252,8 @@ const openCardModal = (cardId) => {
         else if (card.rarity === 'SR') { borderColor = "border-emerald-400"; titleColor = "text-emerald-600"; badgeBg = "bg-emerald-500"; }
         else if (card.rarity === 'R') { borderColor = "border-blue-400"; titleColor = "text-blue-600"; badgeBg = "bg-blue-500"; }
 
-        const icon = card.type === 'AI' ? '🧠' : card.type === 'NET' ? '🌐' : card.type === 'SIM' ? '🎲' : '📊';
+        // Use Lucide Icon
+        const iconName = card.icon || 'file-question';
 
         content.innerHTML = `
             <div class="bg-white rounded-3xl overflow-hidden border-4 ${borderColor} shadow-2xl max-w-sm w-full mx-4 relative animate-scaleIn">
@@ -145,7 +263,9 @@ const openCardModal = (cardId) => {
                 </button>
 
                 <div class="bg-slate-50 p-8 flex flex-col items-center border-b border-slate-100">
-                    <div class="text-6xl mb-4 animate-bounce">${icon}</div>
+                    <div class="text-6xl mb-4 animate-bounce text-slate-700">
+                        <i data-lucide="${iconName}" class="w-16 h-16"></i>
+                    </div>
                     <span class="${badgeBg} text-white px-4 py-1 rounded-full text-lg font-black shadow-sm mb-2">${card.rarity}</span>
                     <h3 class="text-2xl md:text-3xl font-black ${titleColor} text-center leading-tight">${escapeHtml(card.name)}</h3>
                 </div>
@@ -488,6 +608,10 @@ const requestHint = async () => {
 const resetGame = () => {
   stopStreamAnimation();
   resetState(); 
+  
+  // Check for stage completion when returning to Menu
+  checkStageProgression();
+
   state.screen = 'MENU';
   render();
 };
@@ -536,6 +660,38 @@ const renderFeedbackOverlay = () => {
         </div>
       </div>
    `;
+};
+
+// Stage Clear Modal Overlay
+const renderStageClearModal = () => {
+    return `
+      <div class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+        <div class="bg-white p-8 rounded-3xl max-w-sm w-full border-4 border-yellow-400 shadow-2xl relative overflow-hidden text-center animate-scaleIn">
+          <!-- Confetti bg -->
+          <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-yellow-200 via-transparent to-transparent"></div>
+          
+          <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce text-yellow-500">
+             <i data-lucide="star" class="w-10 h-10 fill-yellow-500"></i>
+          </div>
+          
+          <h2 class="text-2xl font-black text-slate-800 mb-2">Stage Clear!</h2>
+          <p class="text-slate-600 font-bold mb-6">
+             初期カード(10枚)を<br>コンプリートしました！
+          </p>
+          
+          <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 text-sm text-yellow-800 font-bold">
+             <p class="mb-2">🎉 新しいカードが追加されました！</p>
+             <p>✨ 背景カラーが変わりました！</p>
+          </div>
+
+          <button onclick="window.app.handleStageClearConfirm()" 
+            class="w-full bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-black py-3 px-6 rounded-xl transition-transform active:scale-95 shadow-lg cursor-pointer"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    `;
 };
 
 // Logic to handle countdown timer for incorrect answers
@@ -619,6 +775,11 @@ const render = () => {
     }
   }
   
+  // Render Stage Clear Modal if active
+  if (state.activeModal === 'STAGE_CLEAR') {
+      html += renderStageClearModal();
+  }
+  
   root.innerHTML = html;
   
   if (window.lucide) {
@@ -654,6 +815,9 @@ window.app = {
   handleBalanceSubmit, 
   handleToolSelect,
   handleGachaDraw,
+  handleGachaReroll,
+  handleGachaKeep,
+  handleStageClearConfirm,
   showCollection,
   openCardModal,
   closeCardModal,
@@ -663,4 +827,6 @@ window.app = {
   retryGame: () => startGame(state.selectedTopic, state.currentLevel)
 };
 
+// Initial check when app loads (e.g. if updated but data mismatch)
+checkStageProgression();
 render();

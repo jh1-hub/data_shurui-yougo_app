@@ -12,6 +12,28 @@ const loadCollection = () => {
   }
 };
 
+// Load collection counts from local storage
+const loadCollectionCounts = (existingCollection) => {
+  try {
+    const saved = localStorage.getItem('dd_collection_counts');
+    if (saved) {
+      return JSON.parse(saved);
+    } else {
+      // Migration: Initialize counts to 1 for existing items
+      const counts = {};
+      if (Array.isArray(existingCollection)) {
+        existingCollection.forEach(id => {
+          counts[id] = 1;
+        });
+      }
+      return counts;
+    }
+  } catch (e) {
+    console.error("Failed to load collection counts", e);
+    return {};
+  }
+};
+
 // Load high scores from local storage
 const loadHighScores = () => {
   try {
@@ -23,18 +45,31 @@ const loadHighScores = () => {
   }
 };
 
-// New: Load User Progress (Last topic, Read tutorials)
+// New: Load User Progress (Last topic, Read tutorials, Stage)
 const loadUserProgress = () => {
   try {
     const saved = localStorage.getItem('dd_progress');
-    return saved ? JSON.parse(saved) : { lastPlayedTopic: null, tutorialsRead: [] };
+    // Default stage is 1
+    return saved ? { stage: 1, ...JSON.parse(saved) } : { lastPlayedTopic: null, tutorialsRead: [], stage: 1 };
   } catch (e) {
     console.error("Failed to load progress", e);
-    return { lastPlayedTopic: null, tutorialsRead: [] };
+    return { lastPlayedTopic: null, tutorialsRead: [], stage: 1 };
   }
 };
 
+// Load persistent gacha stats
+const loadGachaStats = () => {
+    try {
+        const saved = localStorage.getItem('dd_gacha_stats');
+        return saved ? JSON.parse(saved) : { consecutiveDupes: 0 };
+    } catch(e) {
+        return { consecutiveDupes: 0 };
+    }
+};
+
 const progress = loadUserProgress();
+const initialCollection = loadCollection();
+const gachaStats = loadGachaStats();
 
 export const state = {
   screen: 'MENU', // MENU, PLAYING, RESULT, TUTORIAL, COLLECTION
@@ -47,6 +82,7 @@ export const state = {
   // Persistent State
   lastPlayedTopic: progress.lastPlayedTopic, // Persisted lock
   tutorialsRead: progress.tutorialsRead || [], // Persisted tutorial completion ['TYPES', 'CLEANING'...]
+  stage: progress.stage || 1, // 1: Initial (10 cards), 2: Expanded (30 cards)
   
   currentLevel: null, // 'NORMAL' or null (Standard/Professional)
   questions: [],
@@ -65,7 +101,7 @@ export const state = {
   varianceScale: 1.0, // Current scale factor for slider game
   isPaused: false,
   timeoutId: null, // For auto-advance timer
-  activeModal: null, // null, 'LEVEL_SELECT'
+  activeModal: null, // null, 'LEVEL_SELECT', 'STAGE_CLEAR'
   questionStartTime: null, // Timestamp when the current question started
   tutorialPage: 0, // Current page index for the tutorial wizard
   
@@ -75,10 +111,17 @@ export const state = {
   tutorialFeedback: null, // 'CORRECT', 'WRONG', null
 
   // Collection / Gacha State
-  collection: loadCollection(), // Array of collected card IDs
-  gachaResult: null, // The card object obtained from the gacha
+  collection: initialCollection, // Array of collected card IDs (Unique)
+  collectionCounts: loadCollectionCounts(initialCollection), // Object { id: count }
+  gachaResult: null, // The card object currently being viewed
   isGachaAnimating: false,
   hasDrawnGacha: false, // Prevents multiple draws per game
+  consecutiveDupes: gachaStats.consecutiveDupes || 0, // Pity counter
+  
+  // Gacha Reroll Logic
+  gachaState: 'IDLE', // 'IDLE', 'ANIMATING', 'RESULT_NEW', 'RESULT_DUPLICATE'
+  rerollCount: 0,
+  maxRerolls: 0,
 
   // High Scores
   highScores: loadHighScores() // { 'TOPIC_NAME': score, ... }
@@ -87,9 +130,18 @@ export const state = {
 export const saveCollection = () => {
   try {
     localStorage.setItem('dd_collection', JSON.stringify(state.collection));
+    localStorage.setItem('dd_collection_counts', JSON.stringify(state.collectionCounts));
   } catch (e) {
     console.error("Failed to save collection", e);
   }
+};
+
+export const saveGachaStats = () => {
+    try {
+        localStorage.setItem('dd_gacha_stats', JSON.stringify({ consecutiveDupes: state.consecutiveDupes }));
+    } catch (e) {
+        console.error("Failed to save gacha stats", e);
+    }
 };
 
 export const saveHighScores = () => {
@@ -104,7 +156,8 @@ export const saveUserProgress = () => {
   try {
     const data = {
         lastPlayedTopic: state.lastPlayedTopic,
-        tutorialsRead: state.tutorialsRead
+        tutorialsRead: state.tutorialsRead,
+        stage: state.stage
     };
     localStorage.setItem('dd_progress', JSON.stringify(data));
   } catch (e) {
@@ -145,9 +198,15 @@ export const resetState = () => {
   state.tutorialFeedback = null;
   state.currentLevel = null;
   state.phase = 'SELECTION'; // Reset phase
+  
+  // Reset Gacha Session State
   state.gachaResult = null;
   state.isGachaAnimating = false;
   state.hasDrawnGacha = false;
-  // Note: state.lastPlayedTopic and state.tutorialsRead are NOT reset here
-  // Note: state.collection and highScores persist
+  state.gachaState = 'IDLE';
+  state.rerollCount = 0;
+  state.maxRerolls = 0;
+  
+  // Note: state.lastPlayedTopic, state.tutorialsRead, and state.stage are NOT reset here
+  // Note: state.collection, highScores, and consecutiveDupes persist
 };

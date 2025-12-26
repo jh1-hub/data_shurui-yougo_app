@@ -3,13 +3,13 @@ import { state } from '../gameState.js';
 import { escapeHtml } from '../utils.js';
 
 export const renderResult = () => {
-  const isGachaTime = state.isGachaAnimating;
+  const gachaState = state.gachaState; // 'IDLE', 'ANIMATING', 'RESULT_NEW', 'RESULT_DUPLICATE'
   const gachaCard = state.gachaResult;
   const hasDrawn = state.hasDrawnGacha;
-  const isPracticeMode = state.currentLevel === 'NORMAL'; // Check if this was a tutorial practice run
+  const isPracticeMode = state.currentLevel === 'NORMAL'; 
 
   // --- Gacha Animation View (Loading) ---
-  if (isGachaTime) {
+  if (gachaState === 'ANIMATING') {
       return `
         <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 overflow-hidden relative">
            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black"></div>
@@ -40,9 +40,8 @@ export const renderResult = () => {
   }
 
   // --- Gacha Result View (Card Reveal) ---
-  if (gachaCard) {
-      const isNew = state.collection.filter(id => id === gachaCard.id).length === 1;
-
+  if (gachaState === 'RESULT_NEW' || gachaState === 'RESULT_DUPLICATE') {
+      const isNew = gachaState === 'RESULT_NEW';
       // Determine Styles based on Rarity
       let bgContainerClass = "bg-slate-800"; // Default background
       let raysHtml = "";
@@ -54,7 +53,6 @@ export const renderResult = () => {
       let particlesHtml = "";
 
       if (gachaCard.rarity === 'UR') {
-          // UR: Gold/Rainbow, God Rays, Intense Glow
           bgContainerClass = "bg-slate-950";
           raysHtml = `
              <div class="absolute inset-0 animate-[spin_20s_linear_infinite] opacity-40">
@@ -74,9 +72,7 @@ export const renderResult = () => {
           `;
 
       } else if (gachaCard.rarity === 'SR') {
-          // SR: Emerald/Tech, Rotating Grid, Digital Glow
           bgContainerClass = "bg-slate-900";
-          // FIXED: Use a larger container centered for the conic gradient to avoid cutting off corners
           raysHtml = `
              <div class="absolute inset-0 opacity-20 overflow-hidden">
                 <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] bg-[repeating-conic-gradient(#10b981_0deg,#10b981_10deg,transparent_10deg,transparent_20deg)] animate-[spin_60s_linear_infinite]"></div>
@@ -95,7 +91,6 @@ export const renderResult = () => {
           `;
 
       } else if (gachaCard.rarity === 'R') {
-          // R: Blue/Cool, Slight Glow
           bgContainerClass = "bg-slate-800";
           raysHtml = `
              <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.2)_0%,transparent_70%)]"></div>
@@ -108,13 +103,15 @@ export const renderResult = () => {
           iconColor = "text-blue-600";
 
       } else {
-          // N: Simple
           bgContainerClass = "bg-slate-100";
           cardContainerClass = "bg-white";
           cardBorderClass = "border-slate-300 border-2";
           rarityBadgeClass = "bg-slate-500 text-white";
           iconColor = "text-slate-600";
       }
+
+      // Use specific icon from data
+      const iconName = gachaCard.icon || 'file-question';
 
       return `
         <div class="min-h-screen flex flex-col items-center justify-center p-4 ${bgContainerClass} relative overflow-hidden">
@@ -136,8 +133,10 @@ export const renderResult = () => {
                  <!-- Card Body -->
                  <div class="${cardContainerClass} ${cardBorderClass} rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden min-h-[440px] shadow-2xl">
                     
-                    <!-- NEW Badge -->
-                    ${isNew ? '<div class="absolute top-4 right-4 bg-rose-500 text-white text-xs font-black px-3 py-1 rounded-full animate-bounce shadow-md z-20 border border-white">NEW!</div>' : ''}
+                    <!-- NEW / DUPLICATE Badge -->
+                    ${isNew 
+                      ? '<div class="absolute top-4 right-4 bg-rose-500 text-white text-xs font-black px-3 py-1 rounded-full animate-bounce shadow-md z-20 border border-white">NEW!</div>' 
+                      : '<div class="absolute top-4 right-4 bg-slate-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-md z-20 border border-white">DUPLICATE</div>'}
                     
                     <!-- Rarity Watermark -->
                     <div class="text-[10rem] font-black absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-5 select-none z-0 pointer-events-none ${iconColor}">
@@ -146,11 +145,9 @@ export const renderResult = () => {
 
                     <!-- Icon Circle -->
                     <div class="mt-8 mb-6 w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-inner border-4 border-slate-50 relative z-10 animate-[float_4s_ease-in-out_infinite]">
-                       <span class="text-6xl select-none filter drop-shadow-sm">
-                          ${gachaCard.type === 'AI' ? '🧠' : 
-                            gachaCard.type === 'NET' ? '🌐' : 
-                            gachaCard.type === 'SIM' ? '🎲' : '📊'}
-                       </span>
+                       <div class="text-slate-700">
+                          <i data-lucide="${iconName}" class="w-16 h-16 filter drop-shadow-sm"></i>
+                       </div>
                     </div>
                     
                     <!-- Rarity Label -->
@@ -178,12 +175,36 @@ export const renderResult = () => {
               </div>
            </div>
 
-           <!-- Return Button (Appears with delay) -->
-           <div class="mt-10 relative z-10 opacity-0 animate-[fadeIn_0.5s_ease-out_1.5s_forwards]">
-              <button onclick="window.app.resetGame()" class="bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 border border-slate-200">
-                 <i data-lucide="home" class="w-5 h-5"></i> 完了してメニューへ
-              </button>
-           </div>
+           <!-- Action Buttons -->
+           ${gachaState === 'RESULT_DUPLICATE' ? `
+             <!-- Duplicate Options -->
+             <div class="mt-8 relative z-10 flex flex-col gap-3 w-full max-w-sm opacity-0 animate-[fadeIn_0.5s_ease-out_1.5s_forwards]">
+                <div class="text-white text-center text-sm font-bold mb-2 drop-shadow-md">
+                   既に持っているカードです。<br>所持数を増やすか、引き直すか選べます。
+                </div>
+                
+                <button onclick="window.app.handleGachaKeep()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                   <i data-lucide="plus-circle" class="w-5 h-5"></i> このまま入手 (所持数+1)
+                </button>
+                
+                ${state.rerollCount < state.maxRerolls ? `
+                <button onclick="window.app.handleGachaReroll()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                   <i data-lucide="refresh-cw" class="w-5 h-5"></i> 引き直す (あと${state.maxRerolls - state.rerollCount}回)
+                </button>
+                ` : `
+                <button disabled class="w-full bg-slate-400 text-slate-200 font-bold py-3 px-6 rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                   <i data-lucide="x-circle" class="w-5 h-5"></i> 引き直し終了
+                </button>
+                `}
+             </div>
+           ` : `
+             <!-- New Card (Standard Return) -->
+             <div class="mt-10 relative z-10 opacity-0 animate-[fadeIn_0.5s_ease-out_1.5s_forwards]">
+                <button onclick="window.app.resetGame()" class="bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 border border-slate-200">
+                   <i data-lucide="home" class="w-5 h-5"></i> 完了してメニューへ
+                </button>
+             </div>
+           `}
            
            <!-- CSS Animations specific to this view -->
            <style>

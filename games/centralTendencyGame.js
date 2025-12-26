@@ -1,3 +1,4 @@
+
 import { state } from '../gameState.js';
 import { escapeHtml } from '../utils.js';
 import { renderToolBar } from '../views/components.js';
@@ -62,6 +63,17 @@ export const renderCentralTendencyGame = (question) => {
   const tilt = calculateTilt(question.dataPoints, state.balanceSliderValue);
   const isSelectionPhase = state.phase === 'SELECTION';
   
+  // Logic to stack balls if they have the same value
+  const stackedPoints = [];
+  const counts = {};
+  
+  // Sort to process in order (though visualization depends on position)
+  [...question.dataPoints].forEach(val => {
+      const count = counts[val] || 0;
+      stackedPoints.push({ val, stackIndex: count });
+      counts[val] = count + 1;
+  });
+
   return `
     <div class="min-h-screen flex flex-col p-4 max-w-4xl mx-auto bg-slate-50 select-none overflow-x-hidden relative">
       ${renderHeader()}
@@ -100,12 +112,12 @@ export const renderCentralTendencyGame = (question) => {
             <div class="w-full h-64 md:h-80 relative flex items-center justify-center mb-8">
                 
                 <input type="range" id="balance-slider-direct" min="0" max="100" value="${state.balanceSliderValue}" 
-                       class="absolute w-[95%] max-w-2xl h-32 opacity-0 cursor-pointer z-30 touch-manipulation"
+                       class="absolute w-[85%] max-w-2xl h-32 opacity-0 cursor-pointer z-30 touch-manipulation"
                        style="top: 50%; transform: translateY(-50%);"
                 >
 
                 <div id="balance-beam" 
-                     class="w-[95%] max-w-2xl h-2 bg-slate-700 relative transition-transform duration-200 ease-out origin-center pointer-events-none"
+                     class="w-[85%] max-w-2xl h-2 bg-slate-700 relative transition-transform duration-200 ease-out origin-center pointer-events-none"
                      style="transform: rotate(${tilt}deg);"
                 >
                    <div class="absolute top-0 left-0 w-full h-full opacity-30 flex justify-between px-2">
@@ -114,14 +126,23 @@ export const renderCentralTendencyGame = (question) => {
                      <div class="w-[1px] h-3 bg-white mt-[-4px]"></div>
                    </div>
 
-                   ${question.dataPoints.map(val => `
-                     <div class="absolute bottom-4 -translate-x-1/2 flex flex-col items-center" style="left: ${val}%">
-                        <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg flex items-center justify-center text-white font-bold text-[10px] md:text-xs border-2 border-white z-10">
-                          ${val}
+                   ${stackedPoints.map(p => {
+                     // Calculate bottom position based on stack index
+                     // Base offset is 4 (bottom-4 in Tailwind ~ 1rem)
+                     // Each ball is roughly 2rem (8 or 10 units) high.
+                     // We move up by 36px per item in stack
+                     const bottomOffset = 16 + (p.stackIndex * 36); 
+                     
+                     return `
+                     <div class="absolute -translate-x-1/2 flex flex-col items-center transition-all duration-300" 
+                          style="left: ${p.val}%; bottom: ${bottomOffset}px;">
+                        <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg flex items-center justify-center text-white font-bold text-[10px] md:text-xs border-2 border-white z-10 relative">
+                          ${p.val}
+                          ${p.stackIndex > 0 ? `<div class="absolute -bottom-2 w-0.5 h-2 bg-slate-400"></div>` : ''}
                         </div>
-                        <div class="w-[2px] h-4 bg-slate-400"></div>
+                        ${p.stackIndex === 0 ? `<div class="w-[2px] h-4 bg-slate-400 mt-[-2px]"></div>` : ''}
                      </div>
-                   `).join('')}
+                   `}).join('')}
                 </div>
 
                 <div id="balance-fulcrum-visual"
@@ -129,7 +150,7 @@ export const renderCentralTendencyGame = (question) => {
                      style="left: ${state.balanceSliderValue}%; transform: translateX(-50%);"
                 ></div>
                 
-                <div class="absolute top-1/2 mt-[26px] w-[95%] max-w-2xl h-1 bg-slate-200 rounded-full"></div>
+                <div class="absolute top-1/2 mt-[26px] w-[85%] max-w-2xl h-1 bg-slate-200 rounded-full"></div>
             </div>
 
             <!-- Slider Control -->

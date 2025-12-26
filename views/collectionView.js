@@ -4,9 +4,14 @@ import { GACHA_CARDS } from '../data/gachaData.js';
 import { escapeHtml } from '../utils.js';
 
 export const renderCollection = () => {
+    // Only show cards available in the current stage
+    // Stage 1: Only Stage 1 cards
+    // Stage 2: Stage 1 + Stage 2 cards
+    const availableCards = GACHA_CARDS.filter(c => c.stage <= state.stage);
+
     // Sort cards by rarity (UR -> SR -> R -> N) then by ID
     const rarityOrder = { 'UR': 0, 'SR': 1, 'R': 2, 'N': 3 };
-    const sortedCards = [...GACHA_CARDS].sort((a, b) => {
+    const sortedCards = [...availableCards].sort((a, b) => {
         if (rarityOrder[a.rarity] !== rarityOrder[b.rarity]) {
             return rarityOrder[a.rarity] - rarityOrder[b.rarity];
         }
@@ -14,8 +19,10 @@ export const renderCollection = () => {
     });
 
     const collectedIds = state.collection || [];
+    const collectedCounts = state.collectionCounts || {};
     const total = sortedCards.length;
-    const collectedCount = collectedIds.length;
+    // Count collected cards that are visible in this stage
+    const collectedCount = sortedCards.filter(c => collectedIds.includes(c.id)).length;
     const progress = Math.round((collectedCount / total) * 100);
 
     return `
@@ -31,6 +38,7 @@ export const renderCollection = () => {
                <h2 class="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2">
                   <i data-lucide="library" class="w-6 h-6 text-indigo-500"></i>
                   <span>用語カード図鑑</span>
+                  <span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full font-normal ml-2">STAGE ${state.stage}</span>
                </h2>
                <button onclick="window.app.resetGame()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-colors">
                   <i data-lucide="x" class="w-4 h-4"></i> 閉じる
@@ -55,6 +63,7 @@ export const renderCollection = () => {
                
                ${sortedCards.map(card => {
                   const isCollected = collectedIds.includes(card.id);
+                  const count = collectedCounts[card.id] || 0;
                   
                   // Style based on rarity
                   let borderColor = "border-slate-200";
@@ -76,22 +85,21 @@ export const renderCollection = () => {
                       `;
                   }
 
+                  const iconName = card.icon || 'file-question';
+
                   return `
                     <button onclick="window.app.openCardModal('${card.id}')"
                        class="aspect-[2/3] ${bgGradient} rounded-xl border-2 ${borderColor} shadow-sm p-2 flex flex-col relative group overflow-hidden transition-transform hover:scale-[1.05] active:scale-95 items-center text-center">
                        
                        <!-- Header -->
-                       <div class="absolute top-2 right-2">
+                       <div class="absolute top-2 right-2 flex gap-1">
+                          ${count > 1 ? `<span class="text-[9px] font-black text-white bg-rose-500 px-1.5 py-0.5 rounded shadow-sm">x${count}</span>` : ''}
                           <span class="text-[10px] font-black text-white ${badgeColor} px-1.5 py-0.5 rounded shadow-sm">${card.rarity}</span>
                        </div>
                        
                        <!-- Icon (Centered) -->
-                       <div class="flex-1 flex items-center justify-center mt-4">
-                          <div class="text-3xl md:text-4xl select-none filter group-hover:brightness-110 transition-all">
-                            ${card.type === 'AI' ? '🧠' : 
-                              card.type === 'NET' ? '🌐' : 
-                              card.type === 'SIM' ? '🎲' : '📊'}
-                          </div>
+                       <div class="flex-1 flex items-center justify-center mt-4 text-slate-700">
+                          <i data-lucide="${iconName}" class="w-10 h-10 md:w-14 md:h-14 filter group-hover:drop-shadow-md transition-all"></i>
                        </div>
                        
                        <!-- Name (Bottom) -->

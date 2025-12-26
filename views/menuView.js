@@ -5,19 +5,27 @@ import { GACHA_CARDS } from '../data/gachaData.js';
 
 export const renderMenu = () => {
   // --- Calculate Collection Stats ---
+  // Filter cards available in current stage
+  const availableCards = GACHA_CARDS.filter(c => c.stage <= state.stage);
+  
   const rarityCounts = { UR: 0, SR: 0, R: 0, N: 0 };
   const rarityTotals = { UR: 0, SR: 0, R: 0, N: 0 };
   
-  GACHA_CARDS.forEach(card => {
+  availableCards.forEach(card => {
       rarityTotals[card.rarity]++;
       if (state.collection.includes(card.id)) {
           rarityCounts[card.rarity]++;
       }
   });
 
-  const collectedCount = state.collection.length;
-  const totalCards = GACHA_CARDS.length;
-  const collectionPercent = Math.round((collectedCount / totalCards) * 100);
+  // Calculate collected count ONLY for available cards
+  const collectedCount = state.collection.filter(id => {
+      const card = GACHA_CARDS.find(c => c.id === id);
+      return card && card.stage <= state.stage;
+  }).length;
+  
+  const totalCards = availableCards.length;
+  const collectionPercent = totalCards > 0 ? Math.round((collectedCount / totalCards) * 100) : 0;
 
   // --- Calculate Score Stats ---
   // Generate list of topics with their scores
@@ -47,9 +55,6 @@ export const renderMenu = () => {
       const isRead = state.tutorialsRead.includes(moduleCode);
       const isTypesRead = state.tutorialsRead.includes('TYPES');
       
-      // Determine if this specific button should be emphasized
-      // 1. Emphasize 'TYPES' if not read.
-      // 2. Emphasize 'CLEANING' if 'TYPES' IS read but 'CLEANING' is NOT.
       let isRecommended = false;
       if (moduleCode === 'TYPES' && !isRead) isRecommended = true;
       if (moduleCode === 'CLEANING' && !isRead && isTypesRead) isRecommended = true;
@@ -60,12 +65,10 @@ export const renderMenu = () => {
       let badgeHtml = "";
 
       if (isRead) {
-          // READ STATE: Normal, subtle
           wrapperClass += ` bg-${baseColor}-50/50 border border-${baseColor}-100 hover:bg-${baseColor}-50 hover:border-${baseColor}-300 shadow-sm`;
           iconClass += ` bg-white text-${baseColor}-500 border border-${baseColor}-100`;
           statusText = `読了済み <span class="text-[10px] opacity-70 font-normal ml-1">復習する</span>`;
       } else if (isRecommended) {
-          // RECOMMENDED STATE: Emphasized
           wrapperClass += ` bg-white border-4 border-amber-400 shadow-xl hover:bg-amber-50 scale-[1.02] z-10`;
           iconClass += ` bg-amber-100 text-amber-600 border border-amber-200`;
           statusText = `<span class="text-amber-600 font-bold">🔰 解説を読む (必須)</span>`;
@@ -76,7 +79,6 @@ export const renderMenu = () => {
             <div class="absolute inset-0 border-4 border-amber-400 rounded-xl animate-pulse pointer-events-none"></div>
           `;
       } else {
-          // UNREAD BUT NOT RECOMMENDED (e.g. Cleaning when Types is unread): Dimmed
           wrapperClass += ` bg-slate-50 border border-slate-200 opacity-60 hover:opacity-100 hover:bg-white`;
           iconClass += ` bg-slate-200 text-slate-400`;
           statusText = `<span class="text-slate-400">未読</span>`;
@@ -98,13 +100,18 @@ export const renderMenu = () => {
       `;
   };
 
+  // Background style based on stage
+  // Stage 1: slate-50 (Cool), Stage 2: #fdfbf7 (Warm/Cream)
+  const bgClass = state.stage === 1 ? 'bg-slate-50' : 'bg-[#fdfbf7]';
+  const stageLabel = state.stage === 1 ? 'STAGE 1' : 'STAGE 2';
+
   return `
-    <div class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-slate-50">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden ${bgClass} transition-colors duration-1000">
       
       <!-- Background Decorations -->
       <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 opacity-60 pointer-events-none">
-         <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-200/40 rounded-full blur-3xl"></div>
-         <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-3xl"></div>
+         <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] ${state.stage === 1 ? 'bg-emerald-200/40' : 'bg-orange-200/40'} rounded-full blur-3xl transition-colors duration-1000"></div>
+         <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] ${state.stage === 1 ? 'bg-indigo-200/40' : 'bg-yellow-200/40'} rounded-full blur-3xl transition-colors duration-1000"></div>
       </div>
 
       <!-- Title Section -->
@@ -119,7 +126,7 @@ export const renderMenu = () => {
         <p class="text-slate-500 text-sm font-medium">データの基礎から活用まで、ゲームで完全攻略</p>
       </div>
       
-      <!-- PLAYER RECORD DASHBOARD (New Prominent Display) -->
+      <!-- PLAYER RECORD DASHBOARD -->
       <div class="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200 mb-10 overflow-hidden animate-fadeIn relative" style="animation-delay: 0.1s">
           <!-- Dashboard Header -->
           <div class="bg-slate-50/80 backdrop-blur-sm border-b border-slate-100 p-4 flex items-center justify-between">
@@ -127,8 +134,13 @@ export const renderMenu = () => {
                 <div class="bg-indigo-500 text-white p-1.5 rounded-lg"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></div>
                 PLAYER RECORD
              </h2>
-             <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">
-                <i data-lucide="save" class="w-3 h-3"></i> AUTO SAVE ACTIVE
+             <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black ${state.stage === 1 ? 'bg-slate-200 text-slate-500' : 'bg-yellow-100 text-yellow-600'} px-2 py-1 rounded">
+                   ${stageLabel}
+                </span>
+                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">
+                    <i data-lucide="save" class="w-3 h-3"></i> AUTO SAVE
+                </div>
              </div>
           </div>
           
